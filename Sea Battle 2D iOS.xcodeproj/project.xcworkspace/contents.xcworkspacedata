@@ -2,6 +2,6 @@
 <Workspace
    version = "1.0">
    <FileRef
-      location = "self:Sea Battle 2D iOS.xcodeproj">
+      location = "self:">
    </FileRef>
 </Workspace>
