@@ -2,7 +2,7 @@
 //  MainMenuViewController.swift
 //  Sea Battle 2D iOS
 //
-//  Created by Vlad Nechiporenko on 11/12/19.
+//  Created by Vlad Nechyporenko on 11/12/19.
 //  Copyright © 2019 Vlad Nechyporenko. All rights reserved.
 //
 
