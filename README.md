@@ -1,8 +1,8 @@
 # Sea_Battle_iOS_2D
 
 # Singleplayer
-https://user-images.githubusercontent.com/25762193/152879037-4713fae5-1dc8-4ebe-ab03-454c284f30d8.mp4
+https://user-images.githubusercontent.com/25762193/155341259-9ea1e6ea-6f33-4cce-be72-c1e737f77c01.mp4
 
 # Multiplayer
-https://user-images.githubusercontent.com/25762193/152898139-beff458b-eecf-47d9-8cb8-02989e13ac95.mp4
+https://user-images.githubusercontent.com/25762193/155341553-5b6405dd-bd3b-474e-9e2c-a7d9da101227.mp4
 
