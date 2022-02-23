@@ -7,84 +7,212 @@
 //
 
 import Foundation
-import Starscream
 
-
-class Game {
-    var gamemode : Int?
+// class that represents logic of the game
+class Game: Codable{
     
-    var player_1 : Player?
-    var player_2 : Player?
-    
-    var win : String?
-    var name : String?
-    var gamesNames : [String] = ["a"]
-
-    
-    
-    init(gamemode : Int){
-        player_1 = Player()
-        player_2 = Player()
-        self.gamemode = gamemode
+    enum GameMode: String, Codable {
+        case singleplayer
+        case multiplayer
+        case onescreen
+        case none
     }
     
-    init(game : [String : Any]) {
-        gamemode = game["gamemode"] as? Int
-        name = game["name"] as? String
-        var player1Ships : [Ship] = []
-        var player2Ships : [Ship] = []
-        player_1 = Player()
-        player_2 = Player()
-        for b in game["player1Ships"] as! [[String:Any]]{
-            let rotation = b["isRotateRight"] as! Bool
-            let type = b["type"] as! Int
-            let coordinates = b["coordinates"] as! [Int]
-            let isDestroyed = b["isDestroyed"] as! Bool
-            let lockedCoordinates = b["lockedCoordinates"] as! [Int]
-            player1Ships.append(Ship(rotation: rotation, coordinates: coordinates, type: type, lockedCoordinates: lockedCoordinates , isDestroyed: isDestroyed))
+    enum GameType: String, Codable {
+        case create
+        case load
+        case join
+        // when multiplayer game starts we change her status so this game is not showing in available multiplayer games
+        case playing
+        case none
+    }
+    
+    enum PlayerStatus: String, Codable {
+        case player1
+        case player2
+        case none
+    }
+    
+    private(set) var gameMode = GameMode.singleplayer
+    // if player hit ship
+    private(set) var hit = false
+    // text when someone win the game
+    private(set) var win = ""
+    // locked gamesNames for game type
+    private(set) var gamesNames : [String]?
+    
+    // if player destroy ship
+    private var shipDestroyed = false
+    private var currentOponent: Player {
+        if currentPlayerStatus == .player1 {
+            return player_2
         }
-        for b in game["player2Ships"] as! [[String:Any]]{
-            let rotation = b["isRotateRight"] as! Bool
-            let isDestroyed = b["isDestroyed"] as! Bool
-            let type = b["type"] as! Int
-            let coordinates = b["coordinates"] as! [Int]
-            let lockedCoordinates = b["lockedCoordinates"] as! [Int]
-            player2Ships.append(Ship(rotation: rotation, coordinates: coordinates, type: type, lockedCoordinates: lockedCoordinates , isDestroyed: isDestroyed))
+        else {
+            return player_1
         }
-        player_1?.playerShips?.ships = player1Ships
-        player_2?.playerShips?.ships = player2Ships
-        if gamemode != 2 {
-        player_1?.usedCoordinates = game["player1UsedCoordinates"] as! [Int]
-        player_2?.usedCoordinates = game["player2UsedCoordinates"] as! [Int]
+    }
+    private var oponentShips: PlayerShips {
+        if currentPlayerStatus == .player1 {
+            return player_2.playerShips
+        }
+        else {
+            return player_1.playerShips
         }
     }
     
-    init(game1 : [String : Any]) {
-        gamemode = game1["gamemode"] as? Int
-        name = game1["name"] as? String
-        var player1Ships : [Ship] = []
-        player_1 = Player()
-        player_2 = Player()
-        for b in game1["player1Ships"] as! [[String:Any]]{
-            let rotation = b["isRotateRight"] as! Bool
-            let type = b["type"] as! Int
-            let coordinates = b["coordinates"] as! [Int]
-            let isDestroyed = b["isDestroyed"] as! Bool
-            let lockedCoordinates = b["lockedCoordinates"] as! [Int]
-            player1Ships.append(Ship(rotation: rotation, coordinates: coordinates, type: type, lockedCoordinates: lockedCoordinates , isDestroyed: isDestroyed))
+    var gameType = GameType.create
+    var player_1 = Player()
+    var player_2 = Player()
+    var name = ""
+    var currentPlacingPlayer: PlayerStatus {
+        if player_1.ready {
+            return .player2
         }
-        player_1?.playerShips?.ships = player1Ships
+        else {
+            return .player1
+        }
+    }
+    var currentPlayerStatus = PlayerStatus.player1
+    var currentPlacingShips: PlayerShips {
+        if player_1.ready {
+            return player_2.playerShips
+        }
+        else {
+            return player_1.playerShips
+        }
+    }
+    
+    func encode() throws -> Data {
+        try JSONEncoder().encode(self)
+    }
+    
+    // used to place ships randomly
+    func randomCoordinates() -> [Int:[Int:Bool]] {
+        var coordinates = [1:[Int:Bool](),2:[Int:Bool](),3:[Int:Bool](),4:[Int:Bool]()]
+        for x in 1...4{
+            for _ in 0...4-x{
+                var randomNumber = Int.random(in: Constants.availableFieldCoordinates)
+                while coordinates[1]![randomNumber] != nil && coordinates[2]![randomNumber] != nil && coordinates[3]![randomNumber] != nil && coordinates[4]![randomNumber] != nil {
+                    randomNumber = Int.random(in: Constants.availableFieldCoordinates)
+                }
+                coordinates[x]![randomNumber] = Int.random(in: 1...2) == 1 ? true : false
+            }
+        }
+        return coordinates
+    }
+    
+    
+    init(gameMode : GameMode, gameType: GameType, gamesNames: [String]){
+        self.gameMode = gameMode
+        self.gameType = gameType
+        self.gamesNames = gamesNames
     }
     
     func checkForWin() -> Bool{
-        if player_2?.destroyedShips == 10 {
-            win = "Player1 wins"
+        if player_2.destroyedShips == Constants.totalShipsOfPlayer {
+            win = "You win the game!"
             return true
         }
-        if player_1?.destroyedShips == 10 {
-            win = "Player2 wins"
+        if player_1.destroyedShips == Constants.totalShipsOfPlayer {
+            win = "\(player_2.name) wins!"
             return true
         }
         return false
+    }
+    
+    func playerTurn(coordinate: Int, update: @escaping () -> Void) {
+        hit = false
+        shipDestroyed = false
+        if currentOponent.usedCoordinates == nil {
+            currentOponent.usedCoordinates = [Int]()
+        }
+        currentOponent.usedCoordinates!.append(coordinate)
+        if let ships = oponentShips.ships {
+            for ship in ships{
+                if ship.coordinates.contains(coordinate){
+                    hit = true
+                    for shipCoordinate in ship.coordinates{
+                        if coordinate == shipCoordinate {
+                            ship.addUsedCoordinate(coordinate: coordinate)
+                        }
+                    }
+                    if ship.coordinates == ship.usedCoordinates?.sorted(){
+                        ship.isDestroyed = true
+                        shipDestroyed = true
+                    }
+                }
+            }
+        }
+        if hit == false{
+            currentPlayerStatus = currentPlayerStatus == .player1 ? .player2 : .player1
+        }
+        update()
+        if gameMode == .singleplayer && currentPlayerStatus == .player2{
+            // wait 1 second, then make random turn
+            DispatchQueue.main.asyncAfter(deadline: .now() + Constants.secondsToWaitForRandomToMakeTurn) { [weak self] in
+                if let self = self {
+                    var randomCoordinate = Int.random(in: Constants.availableFieldCoordinates)
+                    var usedCoordinate = true
+                    if self.currentOponent.usedCoordinates?.count == 0 ||  self.currentOponent.usedCoordinates == nil{
+                        usedCoordinate = false
+                    }
+                    while(usedCoordinate){
+                        if let usedCoordinates = self.currentOponent.usedCoordinates, usedCoordinates.contains(randomCoordinate) {
+                            usedCoordinate = true
+                        }
+                        else {
+                            usedCoordinate = false
+                        }
+                        if usedCoordinate == true {
+                            randomCoordinate = Int.random(in: Constants.availableFieldCoordinates)
+                        }
+                    }
+                    self.playerTurn(coordinate: randomCoordinate, update: update)
+                }
+            }
+        }
+        if shipDestroyed == true {
+            currentOponent.destroyedShips += 1
+        }
+        if coordinate == -1 {
+            if var usedCoordinates = player_2.usedCoordinates {
+                if let index = usedCoordinates.firstIndex(of: coordinate) {
+                    usedCoordinates.remove(at: index)
+                }
+            }
+        }
+    }
+    
+    func switchPlayers() {
+        let ships = player_1.playerShips.ships
+        let name = player_1.name
+        let email = player_1.email
+        player_1.playerShips.ships = player_2.playerShips.ships
+        player_2.playerShips.ships = ships
+        player_1.name = player_2.name
+        player_2.name = name
+        player_1.email = player_2.email
+        player_2.email = email
+    }
+    
+    func canPlayGame() -> Bool {
+        if currentPlacingShips.shipsCount["1"]! == 0 && currentPlacingShips.shipsCount["2"]! == 0 && currentPlacingShips.shipsCount["3"]! == 0 && currentPlacingShips.shipsCount["4"]! == 0 {
+            return true
+        }
+        return false
+    }
+    
+    func canPlaceShips() -> Bool {
+        if currentPlacingShips.shipsCount["1"]! > 0 || currentPlacingShips.shipsCount["2"]! > 0 || currentPlacingShips.shipsCount["3"]! > 0 || currentPlacingShips.shipsCount["4"]! > 0 {
+            return true
+        }
+        return false
+    }
+    
+    private struct Constants {
+        
+        static let availableFieldCoordinates = 5...104
+        static let totalShipsOfPlayer = 10
+        static let secondsToWaitForRandomToMakeTurn = 1.0
     }
 }

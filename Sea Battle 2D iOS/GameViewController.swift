@@ -8,20 +8,54 @@
 
 import UIKit
 import Starscream
+import Firebase
+import FirebaseDatabase
 
+// VC that controls game view
 class GameViewController: UIViewController , WebSocketDelegate{
-    var socket: Starscream.WebSocket!
+    
+    //MARK: - Websockets
+    
+    private var socket: Starscream.WebSocket!
+    
+    private func starscream() {
+        
+        self.socket = WebSocket(url: URL(string: "ws://localhost:1337/")!, protocols: ["chat"])
+        
+        self.socket.delegate = self
+        socket.connect()
+        
+    }
+    
     func websocketDidConnect(socket: WebSocketClient) {
         print("Connected")
-        socket.write(string: type!)
+        socket.write(string: game.gameType.rawValue)
+        
+        if game.gameType == .join {
+            let data = ["email" : game.player_1.email, "gameName" : game.name, "coordinate" : 1] as [String: Any]
+            socket.write(data: try! JSONSerialization.data(withJSONObject: data))
+        }
     }
     
     func websocketDidDisconnect(socket: WebSocketClient, error: Error?) {
         
     }
     
+    // players trade turns with each other
     func websocketDidReceiveMessage(socket: WebSocketClient, text: String) {
-        // 1
+        
+        // i can make a class that represents a message and make him codable but i leave it like this for now
+        
+        timer?.invalidate()
+        timer = Timer.scheduledTimer(withTimeInterval: 30, repeats: false, block: {[weak self] _ in
+            if let self = self {
+                let data1 = ["email" : self.game.player_1.email, "gameName" : self.game.name, "coordinate" : 500] as [String: Any]
+                let data2 = ["email" : self.game.player_2.email, "gameName" : self.game.name, "coordinate" : 500] as [String: Any]
+                self.socket.write(data: try! JSONSerialization.data(withJSONObject: data1))
+                self.socket.write(data: try! JSONSerialization.data(withJSONObject: data2))
+            }
+        })
+        
         guard let data = text.data(using: .utf16),
             let jsonData = try? JSONSerialization.jsonObject(with: data),
             let jsonDict = jsonData as? [String: Any],
@@ -29,30 +63,38 @@ class GameViewController: UIViewController , WebSocketDelegate{
                 return
         }
         
-        print(jsonDict)
+        var player1TurnTag = 0
+        var player2TurnTag = 0
         
-        // 2
         if messageType == "message"{
             let messageData = jsonDict["data"] as! [String: Any]
-            let player1Turn = messageData["player1Turn"] as! String
-            let player2Turn = messageData["player2Turn"] as! String
+            let player1Turn = messageData["player1Turn"] as? [String: Any]
+            let player2Turn = messageData["player2Turn"] as? [String: Any]
             
-            if let number = Int(player1Turn.components(separatedBy: CharacterSet.decimalDigits.inverted).joined()) {
-                    turn1 = number
+            if let player1Turn = player1Turn, let coordinate = player1Turn["coordinate"] as? Int, player1Turn["email"] as? String == game.player_1.email, player1Turn["gameName"] as? String == game.name {
+                player1TurnTag = coordinate
             }
             
-            if let number = Int(player2Turn.components(separatedBy: CharacterSet.decimalDigits.inverted).joined()) {
-                    turn2 = number
+            if let player2Turn = player2Turn, let coordinate = player2Turn["coordinate"] as? Int, player2Turn["email"] as? String == game.player_1.email, player2Turn["gameName"] as? String == game.name {
+                player2TurnTag = coordinate
             }
         }
-        print(turn1)
-        print(turn2)
-        player = 2
-        if turn1 != 0 && type == "Join"{
-            playerTurn(tag: turn1)
+        
+        if player1TurnTag != 0 && game.gameType == .join && player1TurnTag != 500 && player1TurnTag != 1{
+            playerTurn(tag: player1TurnTag)
         }
-        if turn2 != 0 && type == "Create"{
-            playerTurn(tag: turn2)
+        if player2TurnTag != 0 && game.gameType == .create && player1TurnTag != 500 && player2TurnTag != 1{
+            playerTurn(tag: player2TurnTag)
+        }
+        
+        if (player1TurnTag == 500 || player2TurnTag == 500) && !seguePerformed {
+            seguePerformed = true
+            self.gameBadStatusAlert()
+        }
+        
+        // ensures, that both players are ready
+        if player2TurnTag == 1 && game.gameType == .create {
+            self.hideSpinner(nil)
         }
 
         
@@ -62,58 +104,105 @@ class GameViewController: UIViewController , WebSocketDelegate{
         
     }
     
-    var type: String?
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        checkForGameMode(gamemode : gamemode!)
-        placingButtons()
-        if gamemode == 2 {
-        starscream()
-        }
-        // Do any additional setup after loading the view.
-    }
-    override func viewDidAppear(_ animated: Bool) {
-        placingShips(ships : player1ships! , buttons: player1FieldButtons , hiden : true , player : 1)
-        placingShips(ships : player2ships! , buttons: player2FieldButtons , hiden : true , player : 2)
-    }
+    //MARK: - Variables
     
-    override func viewDidLayoutSubviews() {
-        player1.font = player1.font.withSize(self.view.frame.height / 17)
-        player2.font = player1.font.withSize(self.view.frame.height / 17)
-        winnerLabel.font = winnerLabel.font.withSize(self.view.frame.height / 10)
-        gameButton.titleLabel?.font = .systemFont(ofSize: self.view.frame.height / 10)
-    }
-    
-    var turn1 = 0
-    var turn2 = 0
-    @IBOutlet weak var stackViewButtons: UIStackView!
-    
-    @IBAction func save(_ sender: UIButton) {
-        let requestBody = ["name" : game!.name! , "gamemode" : game!.gamemode! , "player1UsedCoordinates" : game!.player_1!.usedCoordinates, "player2UsedCoordinates" : game!.player_2!.usedCoordinates, "player1Ships" : game!.player_1!.playerShips!.ships.map({ ["isDestroyed": $0.isDestroyed , "isRotateRight": $0.isRotateRight,"coordinates" : $0.coordinates , "usedCoordinates" : $0.usedCoordinates , "lockedCoordinates" : $0.lockedCoordinates , "type" : $0.type] }), "player2Ships" : game!.player_2!.playerShips!.ships.map({ ["isDestroyed": $0.isDestroyed , "isRotateRight": $0.isRotateRight,"coordinates" : $0.coordinates , "usedCoordinates" : $0.usedCoordinates , "lockedCoordinates" : $0.lockedCoordinates , "type" : $0.type] })] as [String : Any]
-        server(player1Dictionary: requestBody)
-    }
-    
+    @IBOutlet weak var saveButton: UIButton!
+    @IBOutlet weak var menuButton: UIButton!
     @IBOutlet weak var player1: UILabel!
-    @IBOutlet var player1FieldButtons: [UIButton]!
     @IBOutlet weak var player2: UILabel!
-    
-    @IBOutlet var player2FieldButtons: [UIButton]!
-    
     @IBOutlet weak var gameButton: UIButton!
     @IBOutlet weak var winnerLabel: UILabel!
-    var game : Game?
+    @IBOutlet weak var stackViewButtons: UIStackView!
+    @IBOutlet weak var deleteButton: UIButton!
     
-    lazy var player1ships = game?.player_1?.playerShips?.ships
-    lazy var player2ships = game?.player_2?.playerShips?.ships
-    
-    var usedCoordinatesForPC = [200]
-    
-    var player_1_Hiden = true
-    var player_2_Hiden = true
-    
-    lazy var gamemode = game?.gamemode
+    @IBOutlet var player1FieldButtons: [UIButton]!
+    @IBOutlet var player2FieldButtons: [UIButton]!
+    @IBOutlet var fieldNames: [UILabel]!
 
-    func placingShips(ships : [Ship] , buttons : [UIButton] , hiden : Bool , player : Int){
+    private var player1shipsCollection = [1:[UIImageView](),2:[UIImageView](),3:[UIImageView](),4:[UIImageView]()]
+    private var player2shipsCollection = [1:[UIImageView](),2:[UIImageView](),3:[UIImageView](),4:[UIImageView]()]
+    private lazy var player1ships = game.player_1.playerShips.ships
+    private lazy var player2ships = game.player_2.playerShips.ships
+    private lazy var gamemode = game.gameMode
+    private let gamesData = GamesData()
+    // timer is made for case if server is crash or player is afk
+    private var timer: Timer?
+    // checks if segue was already performed( or about to perform) so it will not trigger again
+    // cuz sometimes you can get extra message from websocket server which will again trigger segue
+    private var seguePerformed = false
+    
+    var game : Game!
+    
+    //MARK: - View functions
+    
+    override func viewDidLoad() {
+        // Do any additional setup after loading the view.
+        super.viewDidLoad()
+        adjustFonts()
+    }
+    
+    // changes UI depending on game mode
+    override func viewDidAppear(_ animated: Bool) {
+        checkForGameMode(gamemode : gamemode)
+        player1.text = game.player_1.name
+        if gamemode == .singleplayer {
+            player2.text = "Random Generator"
+            // if player saved game when Random Generator was about to make turn
+            if game.currentPlayerStatus == .player2 {
+                game.currentPlayerStatus = .player1
+                playerTurn(tag: -1)
+            }
+        }
+        if gamemode == .onescreen {
+            player2.text = "Player2"
+        }
+        if game.gameType == .create && game.gameMode == .multiplayer {
+            self.showSpinner(nil)
+        }
+        if gamemode == .multiplayer {
+            timer = Timer.scheduledTimer(withTimeInterval: 30, repeats: false, block: {[weak self] _ in
+                if let self = self {
+                    let data1 = ["email" : self.game.player_1.email, "gameName" : self.game.name, "coordinate" : 500] as [String: Any]
+                    let data2 = ["email" : self.game.player_2.email, "gameName" : self.game.name, "coordinate" : 500] as [String: Any]
+                    self.socket.write(data: try! JSONSerialization.data(withJSONObject: data1))
+                    self.socket.write(data: try! JSONSerialization.data(withJSONObject: data2))
+                }
+            })
+            saveButton.isHidden = true
+            deleteButton.isHidden = true
+            player2.text = game.player_2.name
+            let appDelegate = UIApplication.shared.delegate as! AppDelegate
+            appDelegate.gamesData?.currentGame = game
+            starscream()
+            appDelegate.socket = socket
+        }
+        if let player1ships = player1ships, let player2ships = player2ships {
+            placingShips(ships : player1ships , buttons: player1FieldButtons , hiden : true , player : 1)
+            placingShips(ships : player2ships , buttons: player2FieldButtons , hiden : true , player : 2)
+            updateFields()
+        }
+    }
+    
+    override func viewDidDisappear(_ animated: Bool) {
+        if gamemode == .multiplayer {
+            socket.disconnect()
+        }
+    }
+    
+    //MARK: - Local Functions
+    
+    private func adjustFonts() {
+        self.adjustFont(for: saveButton, using: .big)
+        self.adjustFont(for: menuButton, using: .big)
+        self.adjustFont(for: gameButton, using: .medium)
+        self.adjustFont(for: player1, using: .big)
+        self.adjustFont(for: player2, using: .big)
+        self.adjustFont(for: winnerLabel, using: .medium)
+        self.adjustFont(for: deleteButton, using: .big)
+    }
+
+    // places ships on game fields
+    private func placingShips(ships : [Ship] , buttons : [UIButton] , hiden : Bool , player : Int){
         for ship in ships{
             for button in buttons{
                 if ship.coordinates[0] == button.tag{
@@ -144,353 +233,228 @@ class GameViewController: UIViewController , WebSocketDelegate{
                     }
                     view.addSubview(imageView)
                 }
-                if ship.isDestroyed {
-                    for coordinate in ship.lockedCoordinates {
-                        if coordinate == button.tag {
-                            button.isEnabled = false
-                            button.backgroundColor = #colorLiteral(red: 1, green: 0, blue: 0, alpha: 1)
-                        }
-                    }
-                    for coordinate in ship.coordinates {
-                        if coordinate == button.tag {
-                            button.backgroundColor = #colorLiteral(red: 0, green: 0.9768045545, blue: 0, alpha: 1)
-                            button.isEnabled = false
-                        }
-                    }
-                }
             }
         }
     }
     
-    func starscream() {
-           // let url = URL(string: "ws://localhost:8181/echo")!
-            //let request = URLRequest(url: url)
-            self.socket = WebSocket(url: URL(string: "ws://localhost:1337/")!, protocols: ["chat"])
-            
-            
-            self.socket.delegate = self
-            socket.connect()
-           // print(socket.isConnected)
-    //        let message = ["Name" : 33]
-    //        let jsonEncoder = JSONEncoder()
-    //
-    //        do {
-    //            let jsonData = try jsonEncoder.encode(message)
-    //            self.socket.write(data: jsonData)
-    //        } catch let error {
-    //            print("error: \(error)")
-    //        }
+    // makes turn of player
+    private func playerTurn(tag : Int){
+        self.firebaseAction(itemID: "playerTurn", itemName: "\(game.currentPlayerStatus) made turn with coordinate \(tag)")
+        game.playerTurn(coordinate: tag) {[weak self] in
+            self?.updateFields()
         }
+        checkForEndGame()
+    }
     
-    func placingButtons() {
-        for coordinate in game!.player_1!.usedCoordinates {
-            for button in player2FieldButtons {
-                if button.tag == coordinate {
-                    button.isEnabled = false
-                    button.backgroundColor = #colorLiteral(red: 1, green: 0, blue: 0, alpha: 1)
-                }
-            }
-        }
-        for coordinate in game!.player_2!.usedCoordinates {
+    // checks if someone win the game and update UI if yes ( other words if destroyedShips of player = 10)
+    private func checkForEndGame() {
+        if game.checkForWin() {
+            timer?.invalidate()
             for button in player1FieldButtons {
-                if button.tag == coordinate {
-                    button.isEnabled = false
-                    button.backgroundColor = #colorLiteral(red: 1, green: 0, blue: 0, alpha: 1)
-                }
-            }
-        }
-        if game?.gamemode == 0 {
-            usedCoordinatesForPC = game!.player_2!.usedCoordinates
-        }
-    }
-    
-    
-    func checkForGameMode(gamemode : Int){
-        if gamemode == 0 {
-            player_1_Hiden = false
-        }
-        for button in player1FieldButtons {
-            button.isEnabled = false
-        }
-        if gamemode == 2 && type == "Join"{
-            player1.backgroundColor = #colorLiteral(red: 0.9999960065, green: 1, blue: 1, alpha: 1)
-            player2.backgroundColor = #colorLiteral(red: 0, green: 0.9768045545, blue: 0, alpha: 1)
-            for button in player2FieldButtons {
-                button.isEnabled = false
-            }
-        }
-        if gamemode == 2 && type == "Create"{
-            player1.backgroundColor = #colorLiteral(red: 0, green: 0.9768045545, blue: 0, alpha: 1)
-            player2.backgroundColor = #colorLiteral(red: 0.9999960065, green: 1, blue: 1, alpha: 1)
-        }
-        if gamemode != 2 {
-            player1.backgroundColor = #colorLiteral(red: 0, green: 0.9768045545, blue: 0, alpha: 1)
-        }
-    }
-    var player = 1
-    var player1shipsCollection = [1:[UIImageView](),2:[UIImageView](),3:[UIImageView](),4:[UIImageView]()]
-    var player2shipsCollection = [1:[UIImageView](),2:[UIImageView](),3:[UIImageView](),4:[UIImageView]()]
-    
-    
-    @IBAction func playerTurn(_ sender: UIButton) {
-        if gamemode == 2{
-            player = 1
-        }
-        playerTurn(tag: sender.tag)
-        if gamemode == 2 {
-        socket.write(string: String(sender.tag))
-        }
-    }
-    
-    func playerTurn(tag : Int ){
-        var hit = false
-        var shipDestroyed = false
-        if player == 1 {
-            game?.player_1?.usedCoordinates.append(tag)
-            for button in player2FieldButtons{
-                if button.tag == tag{
-                    button.backgroundColor = #colorLiteral(red: 1, green: 0, blue: 0, alpha: 1)
-                    button.isEnabled = false
-                }
-            }
-            for i in 0..<player2ships!.count{
-                if player2ships![i].coordinates.contains(tag){
-                    for coordinate in player2ships![i].coordinates{
-                        if coordinate == tag {
-                            player2ships![i].addUsedCoordinate(coordinate: coordinate)
-                            for button in player2FieldButtons{
-                                if button.tag == coordinate{
-                                    button.backgroundColor = #colorLiteral(red: 0, green: 0.9768045545, blue: 0, alpha: 1)
-                                    button.isEnabled = false
-                                    hit = true
-                                }
-                            }
-                        }
-                    }
-                    if player2ships![i].coordinates == player2ships![i].usedCoordinates.sorted(){
-                        game?.player_2?.playerShips?.ships[i].isDestroyed = true
-                        shipDestroyed = true
-                        for image in player2shipsCollection[player2ships![i].type]!{
-                            if player2ships![i].coordinates[0] == image.tag{
-                                image.isHidden = false
-                            }
-                            for button in player2FieldButtons {
-                                for coordinate in player2ships![i].lockedCoordinates{
-                                    if button.tag == coordinate{
-                                        button.backgroundColor = #colorLiteral(red: 1, green: 0, blue: 0, alpha: 1)
-                                        button.isEnabled = false
-                                    }
-                                }
-                            }
-                            for button in player2FieldButtons {
-                                for coordinate in player2ships![i].coordinates{
-                                    if button.tag == coordinate{
-                                        button.backgroundColor = #colorLiteral(red: 0, green: 0.9768045545, blue: 0, alpha: 1)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            if hit == false && gamemode == 0{
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { // Change `2.0` to the desired number of seconds.
-                    var randomCoordinate = Int.random(in: 5...114)
-                    var usedCoordinate = true
-                    while(usedCoordinate){
-                        for coordinate in self.usedCoordinatesForPC {
-                            if coordinate != randomCoordinate {
-                                usedCoordinate = false
-                            }
-                            else {
-                                usedCoordinate = true
-                            }
-                        }
-                        if usedCoordinate == true {
-                            randomCoordinate = Int.random(in: 5...114)
-                        }
-                    }
-                    self.playerTurn(tag: randomCoordinate)
-                }
-            }
-            if hit == false{
-                if gamemode != 2 {
-                    for button in player2FieldButtons {
-                        button.isEnabled = false
-                    }
-                    for button in player1FieldButtons {
-                        if !(game?.player_2?.usedCoordinates.contains(button.tag))!{
-                            button.isEnabled = true
-                        }
-                    }
-                }
-                if gamemode == 2 {
-                    for button in player2FieldButtons {
-                        button.isEnabled = false
-                    }
-                }
-                player1.backgroundColor = #colorLiteral(red: 0.9999960065, green: 1, blue: 1, alpha: 1)
-                player2.backgroundColor = #colorLiteral(red: 0, green: 0.9768045545, blue: 0, alpha: 1)
-            }
-            if shipDestroyed == true {
-                game?.player_2?.destroyedShips += 1
-            }
-        }
-        if player == 2 {
-            game?.player_2?.usedCoordinates.append(tag)
-            for button in player1FieldButtons {
-                if button.tag == tag {
-                    button.backgroundColor = #colorLiteral(red: 1, green: 0, blue: 0, alpha: 1)
-                    button.isEnabled = false
-                }
-            }
-            for i in 0..<player1ships!.count{
-                if player1ships![i].coordinates.contains(tag){
-                    for coordinate in player1ships![i].coordinates{
-                        if coordinate == tag {
-                            player1ships![i].addUsedCoordinate(coordinate: coordinate)
-                            for button in player1FieldButtons{
-                                if button.tag == coordinate{
-                                    button.backgroundColor = #colorLiteral(red: 0, green: 0.9768045545, blue: 0, alpha: 1)
-                                    button.isEnabled = false
-                                    hit = true
-                                    if gamemode == 0 {
-                                        button.borderColor = #colorLiteral(red: 0.9686274529, green: 0.78039217, blue: 0.3450980484, alpha: 1)
-                                        button.borderWidth = 3
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    if player1ships![i].coordinates == player1ships![i].usedCoordinates.sorted(){
-                        game?.player_1?.playerShips?.ships[i].isDestroyed = true
-                        shipDestroyed = true
-                        for image in player1shipsCollection[player1ships![i].type]!{
-                            if player1ships![i].coordinates[0] == image.tag{
-                                image.isHidden = false
-                            }
-                            for button in player1FieldButtons {
-                                for coordinate in player1ships![i].lockedCoordinates{
-                                    if button.tag == coordinate{
-                                        button.backgroundColor = #colorLiteral(red: 1, green: 0, blue: 0, alpha: 1)
-                                        button.isEnabled = false
-                                    }
-                                }
-                            }
-                            for button in player1FieldButtons {
-                                for coordinate in player1ships![i].coordinates{
-                                    if button.tag == coordinate{
-                                        button.backgroundColor = #colorLiteral(red: 0, green: 0.9768045545, blue: 0, alpha: 1)
-                                        if gamemode == 0 {
-                                            button.borderColor = #colorLiteral(red: 0.9686274529, green: 0.78039217, blue: 0.3450980484, alpha: 1)
-                                            button.borderWidth = 3
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            if hit == true && gamemode == 0{
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { // Change `2.0` to the desired number of seconds.
-                    var randomCoordinate = Int.random(in: 5...114)
-                    var usedCoordinate = true
-                    while(usedCoordinate){
-                        for coordinate in self.usedCoordinatesForPC {
-                            if coordinate != randomCoordinate {
-                                usedCoordinate = false
-                            }
-                            else {
-                                usedCoordinate = true
-                            }
-                        }
-                        if usedCoordinate == true {
-                            randomCoordinate = Int.random(in: 5...114)
-                        }
-                    }
-                    self.playerTurn(tag: randomCoordinate)
-                }
-            }
-            if hit == false{
-                if gamemode != 2 {
-                    for button in player2FieldButtons {
-                        if !(game?.player_1?.usedCoordinates.contains(button.tag))!{
-                            button.isEnabled = true
-                        }
-                    }
-                    for button in player1FieldButtons {
-                        button.isEnabled = false
-                    }
-                }
-                if gamemode == 2 {
-                    for button in player2FieldButtons {
-                        if !(game?.player_1?.usedCoordinates.contains(button.tag))!{
-                            button.isEnabled = true
-                        }
-                    }
-                }
-                player2.backgroundColor = #colorLiteral(red: 0.9999960065, green: 1, blue: 1, alpha: 1)
-                player1.backgroundColor = #colorLiteral(red: 0, green: 0.9768045545, blue: 0, alpha: 1)
-            }
-            if shipDestroyed == true {
-                game?.player_1?.destroyedShips += 1
-            }
-        }
-        if hit == false && gamemode != 2{
-            player = player == 1 ? 2 : 1
-        }
-        if (game?.checkForWin())! {
-            for button in player1FieldButtons {
-                button.isEnabled = false
+                button.removeFromSuperview()
             }
             for button in player2FieldButtons {
-                button.isEnabled = false
+                button.removeFromSuperview()
             }
-            winnerLabel.text = game?.win
+            for shipType in player1shipsCollection {
+                for ship in shipType.value {
+                    ship.removeFromSuperview()
+                }
+            }
+            for shipType in player2shipsCollection {
+                for ship in shipType.value {
+                    ship.removeFromSuperview()
+                }
+            }
+            for name in fieldNames {
+                name.removeFromSuperview()
+            }
+            player1.removeFromSuperview()
+            player2.removeFromSuperview()
+            menuButton.removeFromSuperview()
+            saveButton.removeFromSuperview()
+            deleteButton.removeFromSuperview()
+            winnerLabel.text = game.win
             winnerLabel.layer.zPosition = .greatestFiniteMagnitude
             gameButton.layer.zPosition = .greatestFiniteMagnitude
             stackViewButtons.isUserInteractionEnabled = true
             winnerLabel.isHidden = false
             gameButton.isHidden = false
+            gamesData.delete(game: game)
         }
     }
+    
+    // updates UI at the start of the game
+    private func checkForGameMode(gamemode : Game.GameMode){
+        if gamemode == .singleplayer {
+            for button in player1FieldButtons {
+                button.isEnabled = false
+            }
+        }
+        if gamemode == .multiplayer && game.gameType == .join{
+            player1.backgroundColor = #colorLiteral(red: 0.9999960065, green: 1, blue: 1, alpha: 1)
+            player2.backgroundColor = #colorLiteral(red: 0, green: 0.9768045545, blue: 0, alpha: 1)
+            game.currentPlayerStatus = .player2
+            for button in player1FieldButtons {
+                button.isEnabled = false
+            }
+        }
+        if gamemode == .multiplayer && game.gameType == .create{
+            player1.backgroundColor = #colorLiteral(red: 0, green: 0.9768045545, blue: 0, alpha: 1)
+            player2.backgroundColor = #colorLiteral(red: 0.9999960065, green: 1, blue: 1, alpha: 1)
+            for button in player1FieldButtons {
+                button.isEnabled = false
+            }
+        }
+        if gamemode != .multiplayer {
+            player1.backgroundColor = #colorLiteral(red: 0, green: 0.9768045545, blue: 0, alpha: 1)
+        }
+    }
+    
+    // updates UI after player made turn
+    private func updateButtons(buttons: [UIButton], usedCoordinates: [Int]?, ships: [Ship]) {
+        if let usedCoordinates = usedCoordinates {
+            for button in buttons{
+                if usedCoordinates.contains(button.tag){
+                    button.backgroundColor = #colorLiteral(red: 1, green: 0, blue: 0, alpha: 1)
+                    button.isEnabled = false
+                }
+                for ship in ships{
+                    if ship.coordinates.contains(button.tag) && usedCoordinates.contains(button.tag){
+                        button.backgroundColor = #colorLiteral(red: 0, green: 0.9768045545, blue: 0, alpha: 1)
+                        button.isEnabled = false
+                    }
+                }
+            }
+        }
+    }
+    
+    // updates UI after player made turn
+    private func updateShips(ships: [Ship], shipsCollection: [Int : [UIImageView]], buttons: [UIButton]) {
+        for ship in ships{
+            if ship.isDestroyed {
+                for image in shipsCollection[ship.type]!{
+                    if ship.coordinates[0] == image.tag{
+                        image.isHidden = false
+                    }
+                    for button in buttons {
+                        for coordinate in ship.lockedCoordinates{
+                            if button.tag == coordinate{
+                                button.backgroundColor = #colorLiteral(red: 1, green: 0, blue: 0, alpha: 1)
+                                button.isEnabled = false
+                            }
+                        }
+                    }
+                    for button in buttons {
+                        for coordinate in ship.coordinates{
+                            if button.tag == coordinate{
+                                button.backgroundColor = #colorLiteral(red: 0, green: 0.9768045545, blue: 0, alpha: 1)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // updates UI after player made turn
+    private func updateFields() {
+        switchPlayerViews()
+        updateButtons(buttons: player2FieldButtons, usedCoordinates: game.player_2.usedCoordinates, ships: player2ships!)
+        updateButtons(buttons: player1FieldButtons, usedCoordinates: game.player_1.usedCoordinates, ships: player1ships!)
+        updateShips(ships: player2ships!, shipsCollection: player2shipsCollection, buttons: player2FieldButtons)
+        updateShips(ships: player1ships!, shipsCollection: player1shipsCollection, buttons: player1FieldButtons)
+    }
+    
+    // updates UI after player made turn
+    private func switchPlayerViews() {
+        if game.hit == false{
+            if gamemode == .singleplayer || gamemode == .multiplayer{
+                if game.currentPlayerStatus == .player2 {
+                    for button in player2FieldButtons {
+                        button.isEnabled = false
+                    }
+                }
+                else {
+                    for button in player2FieldButtons {
+                        button.isEnabled = true
+                    }
+                }
+            }
+            if gamemode == .onescreen {
+                if game.currentPlayerStatus == .player1 {
+                    for button in player1FieldButtons {
+                        button.isEnabled = false
+                    }
+                    for button in player2FieldButtons {
+                        button.isEnabled = true
+                    }
+                }
+                else {
+                    for button in player2FieldButtons {
+                        button.isEnabled = false
+                    }
+                    for button in player1FieldButtons {
+                        button.isEnabled = true
+                    }
+                }
+            }
+            if game.currentPlayerStatus == .player1 {
+                player1.backgroundColor = #colorLiteral(red: 0, green: 0.9768045545, blue: 0, alpha: 1)
+                player2.backgroundColor = #colorLiteral(red: 0.9999960065, green: 1, blue: 1, alpha: 1)
+            }
+            else {
+                player1.backgroundColor = #colorLiteral(red: 0.9999960065, green: 1, blue: 1, alpha: 1)
+                player2.backgroundColor = #colorLiteral(red: 0, green: 0.9768045545, blue: 0, alpha: 1)
+            }
+        }
+    }
+    
+    //MARK: - Button functions
+    
+    
+    // makes turn of player
+    @IBAction func playerTurn(_ sender: UIButton) {
+        playerTurn(tag: sender.tag)
+        if gamemode == .multiplayer {
+            if game.gameType == .create {
+                let data = ["email" : game.player_1.email, "gameName" : game.name, "coordinate" : sender.tag] as [String: Any]
+                socket.write(data: try! JSONSerialization.data(withJSONObject: data))
+            }
+            if game.gameType == .join {
+                let data = ["email" : game.player_2.email, "gameName" : game.name, "coordinate" : sender.tag] as [String: Any]
+                socket.write(data: try! JSONSerialization.data(withJSONObject: data))
+            }
+        }
+    }
+    
+    // saves game to database
+    @IBAction func save(_ sender: UIButton) {
+        self.firebaseAction(itemID: "saveGame", itemName: "User saved game with gamename \(game.name)")
+        gamesData.save(game: game)
+    }
+    
+    // deletes game from database
+    @IBAction func deleteGame(_ sender: UIButton) {
+        self.firebaseAction(itemID: "deletGame", itemName: "User deleted game with gamename \(game.name)")
+        gamesData.delete(game: game)
+    }
+    
+    //MARK: - Segue
     
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
-        game = nil
-    }
-    
-    func server (player1Dictionary: [String : Any]) {
-        let url = URL(string: "http://localhost:3000/")!
-        var request = URLRequest(url: url)
-       // request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.httpMethod = "POST"
-        request.httpBody = try! JSONSerialization.data(withJSONObject: player1Dictionary)
+        self.firebaseAction(itemID: "startMenu", itemName: "User went to start menu")
+        seguePerformed = true
         
-        
-
-        let task = URLSession.shared.dataTask(with: request) { data, response, error in
-            guard let _ = data,
-                let response = response as? HTTPURLResponse,
-                error == nil else {                                              // check for fundamental networking error
-                print("error", error ?? "Unknown error")
-                return
+        if gamemode == .multiplayer {
+            if !game.checkForWin() {
+                let data1 = ["email" : game.player_1.email, "gameName" : game.name, "coordinate" : 500] as [String: Any]
+                let data2 = ["email" : game.player_2.email, "gameName" : game.name, "coordinate" : 500] as [String: Any]
+                socket.write(data: try! JSONSerialization.data(withJSONObject: data1))
+                socket.write(data: try! JSONSerialization.data(withJSONObject: data2))
             }
-
-            guard (200 ... 299) ~= response.statusCode else {                    // check for http errors
-                print("statusCode should be 2xx, but is \(response.statusCode)")
-                print("response = \(response)")
-                return
-            }
-
-           // let responseString = String(data: data, encoding: .utf8)
-            //print("responseString = \(String(describing: responseString))")
+            gamesData.delete(game: game)
         }
-
-        task.resume()
     }
     
 }
-

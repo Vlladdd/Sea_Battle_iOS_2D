@@ -2,102 +2,129 @@
   "object": {
     "pins": [
       {
-        "package": "COpenSSL",
-        "repositoryURL": "https://github.com/PerfectlySoft/Perfect-COpenSSL.git",
+        "package": "abseil",
+        "repositoryURL": "https://github.com/firebase/abseil-cpp-SwiftPM.git",
         "state": {
           "branch": null,
-          "revision": "ce3113e159b8c6d8565e5d8db2672b572c81aea9",
-          "version": "4.0.2"
+          "revision": "fffc3c2729be5747390ad02d5100291a0d9ad26a",
+          "version": "0.20200225.4"
         }
       },
       {
-        "package": "PerfectCrypto",
-        "repositoryURL": "https://github.com/PerfectlySoft/Perfect-Crypto.git",
+        "package": "AppAuth",
+        "repositoryURL": "https://github.com/openid/AppAuth-iOS.git",
         "state": {
           "branch": null,
-          "revision": "98373fa3a6c3d551e498c1babe4f25f650fa1310",
-          "version": "3.3.0"
+          "revision": "01131d68346c8ae552961c768d583c715fbe1410",
+          "version": "1.4.0"
         }
       },
       {
-        "package": "PerfectCZlib",
-        "repositoryURL": "https://github.com/PerfectlySoft/Perfect-CZlib-src.git",
+        "package": "BoringSSL-GRPC",
+        "repositoryURL": "https://github.com/firebase/boringssl-SwiftPM.git",
         "state": {
           "branch": null,
-          "revision": "b63e46909aad937c6434766f8f8c6720d8f3bd05",
-          "version": "0.0.4"
+          "revision": "734a8247442fde37df4364c21f6a0085b6a36728",
+          "version": "0.7.2"
         }
       },
       {
-        "package": "PerfectHTTP",
-        "repositoryURL": "https://github.com/PerfectlySoft/Perfect-HTTP.git",
+        "package": "Firebase",
+        "repositoryURL": "https://github.com/firebase/firebase-ios-sdk",
         "state": {
           "branch": null,
-          "revision": "122affd0bb5090c61bdc1e50e7f32ab6457d228e",
-          "version": "3.3.0"
+          "revision": "78f7087fd5d48eb7c36e299f330b6dddccd647b2",
+          "version": "8.12.1"
         }
       },
       {
-        "package": "PerfectHTTPServer",
-        "repositoryURL": "https://github.com/PerfectlySoft/Perfect-HTTPServer.git",
+        "package": "GoogleAppMeasurement",
+        "repositoryURL": "https://github.com/google/GoogleAppMeasurement.git",
         "state": {
           "branch": null,
-          "revision": "4843cd54762d59b7e70841663ae561b279b80946",
-          "version": "3.0.23"
+          "revision": "6cc2991c11872510a5314bc112cc7558dd9d046a",
+          "version": "8.12.0"
         }
       },
       {
-        "package": "PerfectNet",
-        "repositoryURL": "https://github.com/PerfectlySoft/Perfect-Net.git",
+        "package": "GoogleDataTransport",
+        "repositoryURL": "https://github.com/google/GoogleDataTransport.git",
         "state": {
           "branch": null,
-          "revision": "d00b2b9f4cccb4c398e1bcf18f767d6b8add6af7",
-          "version": "3.3.0"
+          "revision": "15ccdfd25ac55b9239b82809531ff26605e7556e",
+          "version": "9.1.2"
         }
       },
       {
-        "package": "PerfectThread",
-        "repositoryURL": "https://github.com/PerfectlySoft/Perfect-Thread.git",
+        "package": "GoogleSignIn",
+        "repositoryURL": "https://github.com/google/GoogleSignIn-iOS",
         "state": {
           "branch": null,
-          "revision": "a50b9a33f08fce638f33ae3121613fe499cc23ec",
-          "version": "3.0.7"
+          "revision": "60ca2bfd218ccb194a746a79b41d9d50eb7e3af0",
+          "version": "6.1.0"
         }
       },
       {
-        "package": "PerfectWebSockets",
-        "repositoryURL": "https://github.com/PerfectlySoft/Perfect-WebSockets.git",
+        "package": "GoogleUtilities",
+        "repositoryURL": "https://github.com/google/GoogleUtilities.git",
         "state": {
           "branch": null,
-          "revision": "9e6ad7068cf91b751f0b5329aea507e54fbda62f",
-          "version": "3.1.1"
+          "revision": "b3bb0c5551fb3f80ca939829639ab5b093edd14f",
+          "version": "7.7.0"
         }
       },
       {
-        "package": "PerfectLib",
-        "repositoryURL": "https://github.com/PerfectlySoft/PerfectLib.git",
+        "package": "gRPC",
+        "repositoryURL": "https://github.com/firebase/grpc-SwiftPM.git",
         "state": {
           "branch": null,
-          "revision": "5a08c2a596df23a3ae30b6ac9cb509a38384166c",
-          "version": "3.1.4"
+          "revision": "fb405dd2c7901485f7e158b24e3a0a47e4efd8b5",
+          "version": "1.28.4"
         }
       },
       {
-        "package": "Realm",
-        "repositoryURL": "https://github.com/realm/realm-cocoa.git",
+        "package": "GTMSessionFetcher",
+        "repositoryURL": "https://github.com/google/gtm-session-fetcher.git",
         "state": {
           "branch": null,
-          "revision": "fa43b8e2909334c79f233ce472332c136ca108da",
-          "version": "4.4.1"
+          "revision": "bc6a19702ac76ac4e488b68148710eb815f9bc56",
+          "version": "1.7.0"
         }
       },
       {
-        "package": "RealmCore",
-        "repositoryURL": "https://github.com/realm/realm-core",
+        "package": "GTMAppAuth",
+        "repositoryURL": "https://github.com/google/GTMAppAuth.git",
         "state": {
           "branch": null,
-          "revision": "35662ff940e340bf630ad1d1d88acfc7af18bee6",
-          "version": "5.23.8"
+          "revision": "40f4103fb52109032c05599a0c39ad43edbdf80a",
+          "version": "1.2.2"
+        }
+      },
+      {
+        "package": "leveldb",
+        "repositoryURL": "https://github.com/firebase/leveldb.git",
+        "state": {
+          "branch": null,
+          "revision": "0706abcc6b0bd9cedfbb015ba840e4a780b5159b",
+          "version": "1.22.2"
+        }
+      },
+      {
+        "package": "nanopb",
+        "repositoryURL": "https://github.com/firebase/nanopb.git",
+        "state": {
+          "branch": null,
+          "revision": "7ee9ef9f627d85cbe1b8c4f49a3ed26eed216c77",
+          "version": "2.30908.0"
+        }
+      },
+      {
+        "package": "Promises",
+        "repositoryURL": "https://github.com/google/promises.git",
+        "state": {
+          "branch": null,
+          "revision": "611337c330350c9c1823ad6d671e7f936af5ee13",
+          "version": "2.0.0"
         }
       },
       {
@@ -116,6 +143,15 @@
           "branch": null,
           "revision": "37760e9a52030bb9011972c5213c3350fa9d41fd",
           "version": "1.0.0"
+        }
+      },
+      {
+        "package": "SwiftProtobuf",
+        "repositoryURL": "https://github.com/apple/swift-protobuf.git",
+        "state": {
+          "branch": null,
+          "revision": "7e2c5f3cbbeea68e004915e3a8961e20bd11d824",
+          "version": "1.18.0"
         }
       }
     ]

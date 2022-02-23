@@ -7,95 +7,177 @@
 //
 
 import UIKit
-import PerfectLib
-import PerfectHTTP
-import PerfectHTTPServer
-import PerfectWebSockets
-import RealmSwift
-import Realm
-//import Sea_Battle_Shared_iOS
-import Starscream
+import GoogleSignIn
+import FirebaseCore
+import Firebase
+import FirebaseAuth
+import FirebaseDatabase
 
 
+// VC that controls main menu
 class MainMenuViewController: UIViewController{
-
     
-    var message : String?
-    
-
     override func viewDidLoad() {
-        super.viewDidLoad()
-        //server()
         // Do any additional setup after loading the view.
-        answer()
-//        g.printA()
-//        test()
-//        sleep(5)
-//        //while a == 0 {}
-//        g.printA()
+        super.viewDidLoad()
+        adjustFonts()
+        gamesData.getGames(email: email)
+        if notificationCenter.checkIfNotificationsAvailable() {
+            notificationCenter.allowNotifications()
+        }
+        notificationCenter.scheduleNotification(title: "Sea Battle", body: "Come play the game!", id: "MainMenu", schedule: .everyday)
+        userName.text = name
     }
+    
+    //MARK: - Variables
+    
     @IBOutlet weak var nextButton: UIButton!
-    
     @IBOutlet weak var previousButton: UIButton!
-    
-    var gamemode : String?
-    var type : String?
-    var gamename : String?
-    var k = 0
-    var singlePlayerGamesNames : [String] = []
-    var multiplayerGamesNames : [String] = []
-    var oneScreenGamesNames : [String] = []
-    var currentGamesNames : [String] = []
-    var games : [[String:Any]] = []
-    var game : [String:Any] = [:]
-    var t : [Ship] = []
-    
-    
+    @IBOutlet weak var userName: UILabel!
     @IBOutlet weak var listButtons: UIStackView!
+    @IBOutlet weak var signOutButton: UIButton!
     
     @IBOutlet var buttons: [UIButton]!
     
-    @IBAction func menuButton(_ sender: UIButton) {
-        if gamemode != nil && type != nil && sender.currentTitle != "Back" && sender.currentTitle != "Previous" && sender.currentTitle != "Next"{
-            gamename = sender.currentTitle
-            for game in games {
-                if game["name"] as? String == gamename {
-                    self.game = game
+    private let notificationCenter = LocalNotifications()
+    private let gamesData = GamesData()
+    private var gameMode : String?
+    private var gameType : String?
+    private var gameName : String?
+    private var startIndex = 0
+    private var currentGamesNames : [String] = []
+    private var pickedGame : Game?
+    
+    var email = GIDSignIn.sharedInstance.currentUser!.profile!.email
+    var name = GIDSignIn.sharedInstance.currentUser!.profile!.name
+    
+    //MARK: - Local Functions
+    
+    private func adjustFonts() {
+        for button in buttons {
+            self.adjustFont(for: button, using: .medium)
+        }
+        self.adjustFont(for: signOutButton, using: .medium)
+        self.adjustFont(for: previousButton, using: .medium)
+        self.adjustFont(for: userName, using: .medium)
+    }
+    
+    private func pageCreator ( gamesNames : [String] , gamesStartIndex : Int = 0) {
+        if gamesNames.count > 2 {
+            if gamesStartIndex + 2 <= gamesNames.count {
+                var index = 0
+                for i in gamesStartIndex..<gamesStartIndex + 2 {
+                    buttons[index].setTitle(gamesNames[i], for: .normal)
+                    buttons[index].isEnabled = true
+                    buttons[index].isHidden = false
+                    index += 1
                 }
             }
-            performSegue(withIdentifier: type!, sender: nil)
-        }
-        if gamemode == nil {
-            gamemode = sender.currentTitle
-            switch gamemode {
-            case "SinglePlayer" : currentGamesNames = singlePlayerGamesNames
-            case "Multiplayer" : currentGamesNames = multiplayerGamesNames
-            case "OneScreen" : currentGamesNames = oneScreenGamesNames
-            default : print("Wrong gamemode")
-            }
-            buttons[0].setTitle("Create", for: .normal)
-            if gamemode != "Multiplayer" {
-            buttons[1].setTitle("Load", for: .normal)
-            }
             else {
-               buttons[1].setTitle("Join", for: .normal)
+                buttons[0].setTitle(gamesNames[gamesStartIndex], for: .normal)
+                buttons[1].isEnabled = false
+                buttons[1].alpha = 0
             }
-            buttons[2].setTitle("Back", for: .normal)
+        }
+        else  {
+            for i in 0..<gamesNames.count {
+                buttons[i].setTitle(gamesNames[i], for: .normal)
+            }
+            for i in gamesNames.count..<2 {
+                buttons[i].isEnabled = false
+                buttons[i].alpha = 0
+            }
+        }
+        listButtons.isUserInteractionEnabled = true
+        listButtons.isHidden = false
+        if startIndex+2 >= gamesNames.count {
+            nextButton.isEnabled = false
         }
         else {
-            if sender.currentTitle != "Back" && type == nil{
-                type = sender.currentTitle
+            nextButton.isEnabled = true
+        }
+        if startIndex != 0 {
+            previousButton.isEnabled = true
+        }
+        else {
+            previousButton.isEnabled = false
+        }
+    }
+    
+    //MARK: - Button Functions
+    
+    @IBAction func signOut(_ sender: UIButton) {
+        GIDSignIn.sharedInstance.signOut()
+        performSegue(withIdentifier: "Sign In", sender: nil)
+    }
+    
+    @IBAction func menuButton(_ sender: UIButton) {
+        gamesData.getGames(email: email)
+        if gameMode != nil && gameType != nil && sender.currentTitle != "Back" && sender.currentTitle != "Previous" && sender.currentTitle != "Next"{
+            gameName = sender.currentTitle
+            for game in gamesData.games {
+                if game.name == gameName && game.gameType != .playing {
+                    self.pickedGame = game
+                }
             }
-            if sender.currentTitle == "Back" {
-                gamemode = nil
-                type = nil
-                gamename = nil
+            if let _ = pickedGame {
+                if gameType! != "Join" {
+                    performSegue(withIdentifier: gameType!, sender: nil)
+                }
+                else {
+                    performSegue(withIdentifier: "Placing Ships", sender: nil)
+                }
+            }
+            else {
+                if gameMode! == "Multiplayer" && gameType! == "Join" {
+                    self.gameBadStatusAlert()
+                }
+                gameMode = nil
+                gameType = nil
+                gameName = nil
                 buttons[0].setTitle("SinglePlayer", for: .normal)
                 buttons[1].setTitle("OneScreen", for: .normal)
                 buttons[2].setTitle("Multiplayer", for: .normal)
                 for button in buttons {
                     button.isEnabled = true
                     button.isHidden = false
+                    button.alpha = 1
+                }
+                listButtons.isUserInteractionEnabled = false
+                listButtons.isHidden = true
+            }
+        }
+        if gameMode == nil {
+            gameMode = sender.currentTitle
+            switch gameMode {
+            case "SinglePlayer" : currentGamesNames = gamesData.singlePlayerGamesNames
+            case "Multiplayer" : currentGamesNames = gamesData.multiplayerAvailableForJoinGamesNames
+            case "OneScreen" : currentGamesNames = gamesData.oneScreenGamesNames
+            default : print("Wrong gamemode")
+            }
+            buttons[0].setTitle("Create", for: .normal)
+            if gameMode != "Multiplayer" {
+                buttons[1].setTitle("Load", for: .normal)
+            }
+            else {
+                buttons[1].setTitle("Join", for: .normal)
+            }
+            buttons[2].setTitle("Back", for: .normal)
+        }
+        else {
+            if sender.currentTitle != "Back" && gameType == nil{
+                gameType = sender.currentTitle
+            }
+            if sender.currentTitle == "Back" {
+                gameMode = nil
+                gameType = nil
+                gameName = nil
+                buttons[0].setTitle("SinglePlayer", for: .normal)
+                buttons[1].setTitle("OneScreen", for: .normal)
+                buttons[2].setTitle("Multiplayer", for: .normal)
+                for button in buttons {
+                    button.isEnabled = true
+                    button.alpha = 1
                 }
                 listButtons.isUserInteractionEnabled = false
                 listButtons.isHidden = true
@@ -107,275 +189,73 @@ class MainMenuViewController: UIViewController{
                 pageCreator(gamesNames: currentGamesNames)
             }
             if sender.currentTitle == "Next"{
-                k += 2
-                pageCreator(gamesNames: currentGamesNames , gamesStartIndex: k)
+                startIndex += 2
+                pageCreator(gamesNames: currentGamesNames , gamesStartIndex: startIndex)
             }
             if sender.currentTitle == "Previous"{
-                k -= 2
-                pageCreator(gamesNames: currentGamesNames , gamesStartIndex: k)
+                startIndex -= 2
+                pageCreator(gamesNames: currentGamesNames , gamesStartIndex: startIndex)
             }
         }
     }
     
+    //MARK: Segue
+    
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
-        var gamemodeInt = 0
-        switch gamemode {
-        case "SinglePlayer" : gamemodeInt = 0
-        case "OneScreen" : gamemodeInt = 1
-        case "Multiplayer" : gamemodeInt = 2
-        default : gamemodeInt = -1
+        if let gameMode = gameMode, let gameType = gameType {
+            self.firebaseAction(itemID: "gameTypeChoose", itemName: "User choose to \(gameType) game with gamemode \(gameMode)")
         }
-        if type == "Create" {
+        var gameMode = Game.GameMode.singleplayer
+        switch self.gameMode {
+        case "SinglePlayer" : gameMode = .singleplayer
+        case "OneScreen" : gameMode = .onescreen
+        case "Multiplayer" : gameMode = .multiplayer
+        default: gameMode = .none
+        }
+        if gameType == "Create" {
             if let PlacingVC = segue.destination as? PlacingShipsViewController{
-                PlacingVC.game = Game(gamemode : gamemodeInt)
-                if gamemodeInt == 2 {
-                    PlacingVC.type = type
+                if gameMode == .multiplayer {
+                    currentGamesNames = gamesData.multiplayerGamesNames
                 }
-                PlacingVC.game?.gamesNames = currentGamesNames
+                let game = Game(gameMode : gameMode, gameType: .create, gamesNames: currentGamesNames)
+                game.player_1.email = email
+                game.player_1.name = name
+                PlacingVC.game = game
             }
         }
-        if type == "Load" {
+        if gameType == "Load" {
             if let GameVC = segue.destination as? GameViewController{
-                GameVC.game = Game(game : game)
+                GameVC.game = pickedGame!
             }
         }
-        if type == "Join"{
+        if gameType == "Join"{
             if let PlacingVC = segue.destination as? PlacingShipsViewController{
-                PlacingVC.game = Game(game1 : game)
-                PlacingVC.type = type
-                PlacingVC.game?.gamesNames = multiplayerGamesNames
-                PlacingVC.badName = false
+                PlacingVC.game = Game(gameMode : gameMode, gameType: .join, gamesNames: currentGamesNames)
+                PlacingVC.game.name = gameName!
+                PlacingVC.game.player_1.email = pickedGame!.player_1.email
+                PlacingVC.game.player_1.name = pickedGame!.player_1.name
+                PlacingVC.game.player_2.email = email
+                PlacingVC.game.player_2.name = name
+                PlacingVC.badGameName = false
+                pickedGame!.gameType = .playing
+                gamesData.changeStatusOf(game: pickedGame!)
             }
         }
     }
     
     override func shouldPerformSegue(withIdentifier identifier: String, sender: Any?) -> Bool {
-        if gamemode != nil && type == "Create"  && gamename == nil {
+        if gameMode != nil && gameType == "Create"  && gameName == nil {
             return true
         }
-        if gamemode != nil && type == "Load"  && gamename != nil {
+        if gameMode != nil && gameType == "Load"  && gameName != nil {
             return true
         }
-        if gamemode != nil && type == "Join"  && gamename != nil {
+        if gameMode != nil && gameType == "Join"  && gameName != nil {
             return true
         }
         return false
     }
     
-    func pageCreator ( gamesNames : [String] , gamesStartIndex : Int = 0) {
-        if gamesNames.count > 2 {
-            if gamesStartIndex + 2 < gamesNames.count {
-                for i in gamesStartIndex..<gamesStartIndex + 2 {
-                    buttons[i].setTitle(gamesNames[i], for: .normal)
-                }
-            }
-            else {
-                buttons[0].setTitle(gamesNames[gamesStartIndex], for: .normal)
-                for i in 1..<2 {
-                    buttons[i].isEnabled = false
-                    buttons[i].isHidden = true
-                }
-            }
-        }
-        else  {
-            for i in 0..<gamesNames.count {
-                buttons[i].setTitle(gamesNames[i], for: .normal)
-            }
-            for i in gamesNames.count..<2 {
-                buttons[i].isEnabled = false
-                buttons[i].isHidden = true
-            }
-        }
-        listButtons.isUserInteractionEnabled = true
-        listButtons.isHidden = false
-        if k+2 >= gamesNames.count {
-            nextButton.isEnabled = false
-        }
-        else {
-            nextButton.isEnabled = true
-        }
-        if k != 0 {
-            previousButton.isEnabled = true
-        }
-        else {
-            previousButton.isEnabled = false
-        }
-    }
-    
-    func server () {
-        let url = URL(string: "http://localhost:3000/")!
-        var request = URLRequest(url: url)
-       // request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.httpMethod = "POST"
-        let parameters: [String: Any] = [
-            "id": 13,
-            "name": "Jack & Jill"
-        ]
-        request.httpBody = try? JSONSerialization.data(withJSONObject: parameters)
-        
-      
-
-        let task = URLSession.shared.dataTask(with: request) { data, response, error in
-            guard let data = data,
-                let response = response as? HTTPURLResponse,
-                error == nil else {                                              // check for fundamental networking error
-                print("error", error ?? "Unknown error")
-                return
-            }
-
-            guard (200 ... 299) ~= response.statusCode else {                    // check for http errors
-                print("statusCode should be 2xx, but is \(response.statusCode)")
-                print("response = \(response)")
-                return
-            }
-
-            let responseString = String(data: data, encoding: .utf8)
-            print("responseString = \(String(describing: responseString))")
-        }
-
-        task.resume()
-    }
-
-    
-//    func test () {
-//        let url = URL(string: "http://localhost:8181/da")!
-//        var request = URLRequest(url: url)
-//       // request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-//        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-//        request.setValue("application/json", forHTTPHeaderField: "Accept")
-//        request.httpMethod = "POST"
-//        let parameters: [String: Any] = [
-//            "id": 13,
-//            "name": "Jack & Jill"
-//        ]
-//        request.httpBody = try? JSONSerialization.data(withJSONObject: parameters)
-//        
-//      
-//
-//        let task = URLSession.shared.dataTask(with: request) { data, response, error in
-//            guard let data = data,
-//                let response = response as? HTTPURLResponse,
-//                error == nil else {                                              // check for fundamental networking error
-//                print("error", error ?? "Unknown error")
-//                return
-//            }
-//
-//            guard (200 ... 299) ~= response.statusCode else {                    // check for http errors
-//                print("statusCode should be 2xx, but is \(response.statusCode)")
-//                print("response = \(response)")
-//                return
-//            }
-//
-//            let responseString = String(data: data, encoding: .utf8)
-//            print("responseString = \(String(describing: responseString))")
-//        }
-//
-//        task.resume()
-//    }
-    
-    func answer () {
-        let url = URL(string: "http://localhost:3000/")!
-        var request = URLRequest(url: url)
-//        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.httpMethod = "GET"
-        
-        let task = URLSession.shared.dataTask(with: request) { data, response, error in
-            guard let data = data,
-                let response = response as? HTTPURLResponse,
-                error == nil else {                                              // check for fundamental networking error
-                    print("error", error ?? "Unknown error")
-                    return
-            }
-            
-            guard (200 ... 299) ~= response.statusCode else {                    // check for http errors
-                print("statusCode should be 2xx, but is \(response.statusCode)")
-                print("response = \(response)")
-                return
-            }
-            
-           
-          //  let responseString = String(data: data, encoding: .utf8)
-            
-            // Convert your response string to data or if you've data then pass it directly
-          //  let jsonData = responseString?.data(using: .utf8)
-
-            do {
-                let json = try JSONSerialization.jsonObject(with: data, options: [])
-                if let array = json as? [[String : Any]] {
-                    self.games = json as! [[String : Any]]
-                    // print(json)
-                    for k in array {
-                        if let a = k["gamemode"] as? Int  {
-                            if a == 0{
-                            let p = k["name"] as! String
-                            self.singlePlayerGamesNames.append(p)
-                            }
-                        }
-                    }
-                    for k in array {
-                        if let a = k["gamemode"] as? Int  {
-                            if a == 2{
-                            let p = k["name"] as! String
-                            self.multiplayerGamesNames.append(p)
-                            }
-                        }
-                    }
-                    for k in array {
-                        if let a = k["gamemode"] as? Int  {
-                            if a == 1{
-                            let p = k["name"] as! String
-                            self.oneScreenGamesNames.append(p)
-                            }
-                        }
-                    }
-                    
-                }
-            }
-            catch {
-              print("Couldn't parse json \(error)")
-            }
-            
-
-            
-            
-            
-    
-            //print("responseString = \(responseString!)")
-        }
-        
-        task.resume()
-       // print(games)
-    }
-    
-
 }
 
 
-
-
-
-extension Dictionary {
-    func percentEscaped() -> String {
-        return map { (key, value) in
-            let escapedKey = "\(key)".addingPercentEncoding(withAllowedCharacters: .urlQueryValueAllowed) ?? ""
-            let escapedValue = "\(value)".addingPercentEncoding(withAllowedCharacters: .urlQueryValueAllowed) ?? ""
-            return escapedKey + "=" + escapedValue
-        }
-        .joined(separator: "&")
-    }
-}
-
-extension CharacterSet {
-    static let urlQueryValueAllowed: CharacterSet = {
-        let generalDelimitersToEncode = ":#[]@" // does not include "?" or "/" due to RFC 3986 - Section 3.4
-        let subDelimitersToEncode = "!$&'()*+,;="
-
-        var allowed = CharacterSet.urlQueryAllowed
-        allowed.remove(charactersIn: "\(generalDelimitersToEncode)\(subDelimitersToEncode)")
-        return allowed
-    }()
-}

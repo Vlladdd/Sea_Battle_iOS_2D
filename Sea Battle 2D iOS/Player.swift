@@ -9,16 +9,21 @@
 import Foundation
 
 
-class Player{
+// class that represents player
+class Player: Codable{
     
-    var playerShips : PlayerShips?
-    var hit : Bool?
+    // ready = true when player placed his ships
+    var ready = false
+    // name and email of player from his google account; email is using to determine
+    // whether the game was created by this user
+    var email = ""
+    var name = ""
+    // ships of player and all data associated to them
+    var playerShips = PlayerShips()
+    // how much of THIS player`s ships was destroyed
     var destroyedShips = 0
-    var usedCoordinates:[Int] = [200]
-    
-    init(){
-        playerShips = PlayerShips()
-    }
-    
+    // coordinates which THIS player already used to try guess where the ship is;
+    // in UI they are red if there is no ship and green if this is one of the ship`s coordinate
+    var usedCoordinates:[Int]?
     
 }

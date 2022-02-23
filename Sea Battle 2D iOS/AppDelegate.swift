@@ -7,15 +7,26 @@
 //
 
 import UIKit
+import Firebase
+import Starscream
+import FirebaseCore
+import GoogleSignIn
+import FirebaseAuth
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
     var window: UIWindow?
+    var gamesData: GamesData?
+    var socket: Starscream.WebSocket?
 
-
+    let notifications = LocalNotifications()
+    
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
+        FirebaseApp.configure()
+        gamesData = GamesData()
+        notifications.notificationCenter.delegate = notifications
         return true
     }
 
@@ -34,11 +45,57 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func applicationDidBecomeActive(_ application: UIApplication) {
+        UIApplication.shared.applicationIconBadgeNumber = 0
         // Restart any tasks that were paused (or not yet started) while the application was inactive. If the application was previously in the background, optionally refresh the user interface.
     }
 
     func applicationWillTerminate(_ application: UIApplication) {
+        // when user terminate application if game was in multiplayer mode, game should be deleted and opponent should be notified;
+        // it happens when game is playing and when user who creates game waiting for oponent and terminate app
+        // it`s not good to made such functions here but i didn`t found any other method to remove data from MongoDB
+        // for firebase there is a func onDisconnectRemoveValue()
+        if let game = gamesData?.currentGame, game.gameMode == .multiplayer {
+            if let socket = socket {
+                let data1 = ["email" : game.player_1.email, "gameName" : game.name, "coordinate" : 500] as [String: Any]
+                let data2 = ["email" : game.player_2.email, "gameName" : game.name, "coordinate" : 500] as [String: Any]
+                socket.write(data: try! JSONSerialization.data(withJSONObject: data1))
+                socket.write(data: try! JSONSerialization.data(withJSONObject: data2))
+            }
+            let group = DispatchGroup()
+            group.enter()
+            if gamesData?.currentDatabase == .mongoDB {
+                var request = URLRequest(url: URL(string: "http://localhost:3000/delete")!)
+                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                request.setValue("application/json", forHTTPHeaderField: "Accept")
+                request.httpMethod = "POST"
+                request.httpBody = try! game.encode()
+                
+                let task = URLSession.shared.dataTask(with: request) { data, response, error in
+                    guard let _ = data,
+                          let response = response as? HTTPURLResponse,
+                          error == nil else {
+                              print("error", error ?? "Unknown error")
+                              return
+                          }
+                    
+                    guard (200 ... 299) ~= response.statusCode else {                    
+                        print("statusCode should be 2xx, but is \(response.statusCode)")
+                        print("response = \(response)")
+                        return
+                    }
+                    group.leave()
+                }
+                
+                task.resume()
+            }
+            group.wait()
+        }
         // Called when the application is about to terminate. Save data if appropriate. See also applicationDidEnterBackground:.
+    }
+    
+    @available(iOS 9.0, *)
+    func application(_ application: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any]) -> Bool {
+        return GIDSignIn.sharedInstance.handle(url)
     }
 
 
