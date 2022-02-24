@@ -292,7 +292,7 @@ class GameViewController: UIViewController , WebSocketDelegate{
             }
         }
         if gamemode == .multiplayer && game.gameType == .join{
-            player1.backgroundColor = #colorLiteral(red: 0.9999960065, green: 1, blue: 1, alpha: 1)
+            player1.backgroundColor = UIColor.clear
             player2.backgroundColor = #colorLiteral(red: 0, green: 0.9768045545, blue: 0, alpha: 1)
             game.currentPlayerStatus = .player2
             for button in player1FieldButtons {
@@ -301,7 +301,7 @@ class GameViewController: UIViewController , WebSocketDelegate{
         }
         if gamemode == .multiplayer && game.gameType == .create{
             player1.backgroundColor = #colorLiteral(red: 0, green: 0.9768045545, blue: 0, alpha: 1)
-            player2.backgroundColor = #colorLiteral(red: 0.9999960065, green: 1, blue: 1, alpha: 1)
+            player2.backgroundColor = UIColor.clear
             for button in player1FieldButtons {
                 button.isEnabled = false
             }
@@ -401,10 +401,10 @@ class GameViewController: UIViewController , WebSocketDelegate{
             }
             if game.currentPlayerStatus == .player1 {
                 player1.backgroundColor = #colorLiteral(red: 0, green: 0.9768045545, blue: 0, alpha: 1)
-                player2.backgroundColor = #colorLiteral(red: 0.9999960065, green: 1, blue: 1, alpha: 1)
+                player2.backgroundColor = UIColor.clear
             }
             else {
-                player1.backgroundColor = #colorLiteral(red: 0.9999960065, green: 1, blue: 1, alpha: 1)
+                player1.backgroundColor = UIColor.clear
                 player2.backgroundColor = #colorLiteral(red: 0, green: 0.9768045545, blue: 0, alpha: 1)
             }
         }

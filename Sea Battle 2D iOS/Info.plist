@@ -23,15 +23,14 @@
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>change</string>
-				<string>with</string>
-				<string>ur</string>
-				<string>data</string>
-				<string>from</string>
-				<string>Firebase</string>
-				<string>and</string>
 				<string>add</string>
-				<string>GoogleService-info</string>
+				<string>your</string>
+				<string>reversed</string>
+				<string>client</string>
+				<string>id</string>
+				<string>from</string>
+				<string>firebase</string>
+				<string>here</string>
 			</array>
 		</dict>
 	</array>

@@ -236,20 +236,32 @@ extension UIViewController {
     func adjustFont(for button: UIButton, using fontSizeStatus: FontSizeStatus) {
         button.titleLabel?.font = .systemFont(ofSize: min(self.view.frame.height,self.view.frame.width) / getFontSizeCGFloatFactor(from: fontSizeStatus))
         button.layer.borderWidth = 2
-        button.layer.borderColor = UIColor.black.cgColor
+        if self.traitCollection.userInterfaceStyle == .dark {
+            button.layer.borderColor = UIColor.white.cgColor
+        }
+        else {
+            button.layer.borderColor = UIColor.black.cgColor
+        }
     }
     func adjustFont(for label: UILabel, using fontSizeStatus: FontSizeStatus) {
         label.font = label.font.withSize(min(self.view.frame.height,self.view.frame.width) / getFontSizeCGFloatFactor(from: fontSizeStatus))
         label.layer.borderWidth = 2
-        label.layer.borderColor = UIColor.black.cgColor
-        label.textColor = .black
+        if self.traitCollection.userInterfaceStyle == .dark {
+            label.layer.borderColor = UIColor.white.cgColor
+        }
+        else {
+            label.layer.borderColor = UIColor.black.cgColor
+        }
     }
     func adjustFont(for textField: UITextField, using fontSizeStatus: FontSizeStatus) {
         textField.font = textField.font?.withSize(min(self.view.frame.height,self.view.frame.width) / getFontSizeCGFloatFactor(from: fontSizeStatus))
-        textField.textColor = .black
-        textField.backgroundColor = .white
         textField.layer.borderWidth = 2
-        textField.layer.borderColor = UIColor.black.cgColor
+        if self.traitCollection.userInterfaceStyle == .dark {
+            textField.layer.borderColor = UIColor.white.cgColor
+        }
+        else {
+            textField.layer.borderColor = UIColor.black.cgColor
+        }
     }
     
     func getFontSizeCGFloatFactor(from fontSizeStatus: FontSizeStatus) -> CGFloat {

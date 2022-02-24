@@ -12,7 +12,7 @@
         <!--Authorization View Controller-->
         <scene sceneID="cOV-RV-xU9">
             <objects>
-                <viewController id="fg8-aO-rpP" customClass="AuthorizationViewController" customModule="Sea_Battle_2D_iOS" customModuleProvider="target" sceneMemberID="viewController">
+                <viewController modalPresentationStyle="fullScreen" id="fg8-aO-rpP" customClass="AuthorizationViewController" customModule="Sea_Battle_2D_iOS" customModuleProvider="target" sceneMemberID="viewController">
                     <view key="view" contentMode="scaleToFill" id="PJZ-CL-BXn">
                         <rect key="frame" x="0.0" y="0.0" width="896" height="414"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
@@ -199,7 +199,7 @@
                             </stackView>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="WGy-I1-QVn"/>
-                        <color key="backgroundColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                        <color key="backgroundColor" systemColor="systemBackgroundColor"/>
                         <constraints>
                             <constraint firstItem="Iu1-ss-88S" firstAttribute="top" secondItem="ecp-TW-Vk3" secondAttribute="bottom" constant="22.5" id="Gs4-nv-Bwz"/>
                             <constraint firstItem="Iu1-ss-88S" firstAttribute="centerX" secondItem="WGy-I1-QVn" secondAttribute="centerX" id="Jtb-pA-GpE"/>
@@ -2128,7 +2128,7 @@
                             </stackView>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="6Tk-OE-BBY"/>
-                        <color key="backgroundColor" red="1" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <color key="backgroundColor" systemColor="systemBackgroundColor"/>
                         <constraints>
                             <constraint firstItem="rrV-Ud-svY" firstAttribute="leading" secondItem="6Tk-OE-BBY" secondAttribute="leading" constant="20" id="1sv-n3-ybg"/>
                             <constraint firstItem="6Tk-OE-BBY" firstAttribute="bottom" secondItem="Vyq-ZP-xp3" secondAttribute="bottom" constant="10" id="2Ob-z0-G3L"/>
@@ -5775,7 +5775,7 @@
                             </button>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="jwm-l9-r7l"/>
-                        <color key="backgroundColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                        <color key="backgroundColor" systemColor="systemBackgroundColor"/>
                         <constraints>
                             <constraint firstItem="jwm-l9-r7l" firstAttribute="trailing" secondItem="ZdT-f1-tdW" secondAttribute="trailing" constant="20" id="2rh-GY-cp7"/>
                             <constraint firstItem="ZdT-f1-tdW" firstAttribute="leading" secondItem="shh-al-g3d" secondAttribute="trailing" constant="10" id="3Ag-Wv-6QS"/>
@@ -6065,7 +6065,7 @@
     <inferredMetricsTieBreakers>
         <segue reference="kiZ-gM-nfy"/>
         <segue reference="lPy-l9-2Dd"/>
-        <segue reference="ZvQ-eg-h1c"/>
+        <segue reference="d5q-9O-Mxo"/>
     </inferredMetricsTieBreakers>
     <resources>
         <image name="ship_1" width="42" height="22"/>
